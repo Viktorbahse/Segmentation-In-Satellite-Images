@@ -4,7 +4,11 @@ import shutil
 
 from tqdm import tqdm
 
-from robosat.tiles import tiles_from_slippy_map, tiles_from_csv
+import rootutils
+rootutils.setup_root(__file__, indicator="robosat", pythonpath=True)
+
+
+from robosat.tiles import tiles_from_slippy_map, tiles_from_csv # noqa
 
 
 def add_parser(subparser):
@@ -36,3 +40,24 @@ def main(args):
         dst = os.path.join(args.out, str(tile.z), str(tile.x), "{}{}".format(tile.y, extention))
 
         shutil.copyfile(src, dst)
+
+
+if __name__ == "__main__":
+    class Args:
+        def __init__(self, images, tiles, out):
+            self.images = images # "data/tiles" "data/masks"
+            self.tiles = tiles
+            self.out = out # "data/training/images" "data/training/labels"
+    
+    args_1 = Args("data/tiles", "data/train.csv", "data/training/images")
+    args_2 = Args("data/masks", "data/train.csv", "data/training/labels")
+    args_3 = Args("data/tiles", "data/val.csv", "data/validation/images")
+    args_4 = Args("data/masks", "data/val.csv", "data/validation/labels")
+    args_5 = Args("data/tiles", "data/test.csv", "data/testing/images")
+    args_6 = Args("data/masks", "data/test.csv", "data/testing/labels")
+    main(args_1)
+    main(args_2)
+    main(args_3)
+    main(args_4)
+    main(args_5)
+    main(args_6)

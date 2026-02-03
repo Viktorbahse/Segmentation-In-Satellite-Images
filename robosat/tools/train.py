@@ -15,8 +15,11 @@ from torchvision.transforms import Resize, CenterCrop, Normalize
 
 from tqdm import tqdm
 
-from robosat.transforms import (
-    JointCompose,
+import rootutils
+rootutils.setup_root(__file__, indicator="robosat", pythonpath=True)
+
+from robosat.transforms import (  # noqa: E402
+    JointCompose,  
     JointTransform,
     JointRandomHorizontalFlip,
     JointRandomRotation,
@@ -24,13 +27,13 @@ from robosat.transforms import (
     ImageToTensor,
     MaskToTensor,
 )
-from robosat.datasets import SlippyMapTilesConcatenation
-from robosat.metrics import Metrics
-from robosat.losses import CrossEntropyLoss2d, mIoULoss2d, FocalLoss2d, LovaszLoss2d
-from robosat.unet import UNet
-from robosat.utils import plot
-from robosat.config import load_config
-from robosat.log import Log
+from robosat.datasets import SlippyMapTilesConcatenation  # noqa
+from robosat.metrics import Metrics  # noqa
+from robosat.losses import CrossEntropyLoss2d, mIoULoss2d, FocalLoss2d, LovaszLoss2d  # noqa
+from robosat.unet import UNet  # noqa
+from robosat.utils import plot  # noqa
+from robosat.config import load_config  # noqa
+from robosat.log import Log  # noqa
 
 
 @contextmanager
@@ -81,7 +84,7 @@ def main(args):
     optimizer = Adam(net.parameters(), lr=model["opt"]["lr"])
 
     resume = 0
-    if args.checkpoint:
+    if args.checkpoint is not None:
 
         def map_location(storage, _):
             return storage.cuda() if model["common"]["cuda"] else storage.cpu()
@@ -104,7 +107,7 @@ def main(args):
         criterion = LovaszLoss2d().to(device)
     else:
         sys.exit("Error: Unknown [opt][loss] value !")
-
+    
     train_loader, val_loader = get_dataset_loaders(model, dataset, args.workers)
 
     num_epochs = model["opt"]["epochs"]
@@ -165,10 +168,8 @@ def train(loader, num_classes, device, net, optimizer, criterion):
     running_loss = 0
 
     metrics = Metrics(range(num_classes))
-
     net.train()
-
-    for images, masks, tiles in tqdm(loader, desc="Train", unit="batch", ascii=True):
+    for images, masks, tiles in tqdm(loader, desc="Train", unit="batch", ascii=True):       
         images = images.to(device)
         masks = masks.to(device)
 
@@ -269,8 +270,47 @@ def get_dataset_loaders(model, dataset, workers):
 
     assert len(train_dataset) > 0, "at least one tile in training dataset"
     assert len(val_dataset) > 0, "at least one tile in validation dataset"
+    
+    def tile_collate(batch):
+        images = []
+        masks = []
+        tiles = []
+        
+        for img, mask, tile_list in batch:
+            images.append(img)
+            masks.append(mask)
+            tiles.append(tile_list[0])
+        
+        return torch.stack(images), torch.stack(masks), tiles
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=workers)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=True, num_workers=workers)
+    train_loader = DataLoader(
+        train_dataset, 
+        batch_size=batch_size, 
+        shuffle=True, 
+        drop_last=True, 
+        num_workers=workers,
+        collate_fn=tile_collate  
+    )
+    
+    val_loader = DataLoader(
+        val_dataset, 
+        batch_size=batch_size, 
+        shuffle=False, 
+        drop_last=True, 
+        num_workers=workers,
+        collate_fn=tile_collate  
+    )
 
     return train_loader, val_loader
+
+
+if __name__ == "__main__":
+    class Args:
+        def __init__(self):
+            self.model = "config/model-unet.toml"
+            self.dataset = "config//dataset-building.toml"
+            self.workers = 0
+            self.checkpoint = None
+    
+    args = Args()
+    main(args)

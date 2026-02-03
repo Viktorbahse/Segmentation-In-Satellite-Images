@@ -16,3 +16,8 @@ rtree
 pyproj
 toml
 pytest
+torch 
+torchvision
+rootutils 
+pandas
+scikit-learn

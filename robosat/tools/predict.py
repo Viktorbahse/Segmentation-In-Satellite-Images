@@ -13,12 +13,21 @@ from torchvision.transforms import Compose, Normalize
 from tqdm import tqdm
 from PIL import Image
 
+import rootutils
+rootutils.setup_root(__file__, indicator="robosat", pythonpath=True)
+
+from robosat.transforms import ConvertImageMode, ImageToTensor
 from robosat.datasets import BufferedSlippyMapDirectory
 from robosat.unet import UNet
 from robosat.config import load_config
 from robosat.colors import continuous_palette_for_color
-from robosat.transforms import ConvertImageMode, ImageToTensor
 
+from torch.utils.data._utils.collate import default_collate
+
+def collate(batch):
+    images = default_collate([b[0] for b in batch])
+    coords = [b[1] for b in batch]  # оставляем как список кортежей (x,y,z)
+    return images, coords
 
 def add_parser(subparser):
     parser = subparser.add_parser(
@@ -27,7 +36,7 @@ def add_parser(subparser):
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument("--batch_size", type=int, default=1, help="images per batch")
+    parser.add_argument("--batch_size", type=int, default=4, help="images per batch")
     parser.add_argument("--checkpoint", type=str, required=True, help="model checkpoint to load")
     parser.add_argument("--overlap", type=int, default=32, help="tile pixel overlap to predict on")
     parser.add_argument("--tile_size", type=int, required=True, help="tile size for slippy map tiles")
@@ -75,11 +84,11 @@ def main(args):
     directory = BufferedSlippyMapDirectory(args.tiles, transform=transform, size=args.tile_size, overlap=args.overlap)
     assert len(directory) > 0, "at least one tile in dataset"
 
-    loader = DataLoader(directory, batch_size=args.batch_size, num_workers=args.workers)
+    loader = DataLoader(directory, batch_size=args.batch_size, num_workers=args.workers, collate_fn=collate)
 
     # don't track tensors with autograd during prediction
     with torch.no_grad():
-        for images, tiles in tqdm(loader, desc="Eval", unit="batch", ascii=True):
+        for batch_idx, (images, tiles) in enumerate(tqdm(loader, desc="Eval", unit="batch", ascii=True)):
             images = images.to(device)
             outputs = net(images)
 
@@ -87,7 +96,22 @@ def main(args):
             probs = nn.functional.softmax(outputs, dim=1).data.cpu().numpy()
 
             for tile, prob in zip(tiles, probs):
-                x, y, z = list(map(int, tile))
+                # Дополнительная защита на случай неожиданных форм
+                if isinstance(tile, (tuple, list)):
+                    x, y, z = map(int, tile)
+                else:
+                    # tile может быть тензором; приведём к списку
+                    if hasattr(tile, "detach"):
+                        tlist = tile.detach().cpu().tolist()
+                    else:
+                        try:
+                            tlist = list(tile)
+                        except Exception:
+                            raise ValueError(f"Unexpected tile type: {type(tile)}")
+                    if len(tlist) == 3:
+                        x, y, z = map(int, tlist)
+                    else:
+                        raise ValueError(f"Unexpected tile format in batch {batch_idx}: {tlist}")
 
                 # we predicted on buffered tiles; now get back probs for original image
                 prob = directory.unbuffer(prob)
@@ -111,3 +135,29 @@ def main(args):
                 path = os.path.join(args.probs, str(z), str(x), str(y) + ".png")
 
                 out.save(path, optimize=True)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Predict probability masks for slippy map tiles")
+    subparsers = parser.add_subparsers(dest="command", help="available commands")
+
+    # Добавляем парсер для команды predict
+    predict_parser = subparsers.add_parser("predict", help="run prediction")
+
+    # Копируем аргументы из функции add_parser
+    predict_parser.add_argument("--batch_size", type=int, default=1, help="images per batch")
+    predict_parser.add_argument("--checkpoint", type=str, required=True, help="model checkpoint to load")
+    predict_parser.add_argument("--overlap", type=int, default=32, help="tile pixel overlap to predict on")
+    predict_parser.add_argument("--tile_size", type=int, required=True, help="tile size for slippy map tiles")
+    predict_parser.add_argument("--workers", type=int, default=0, help="number of workers pre-processing images")
+    predict_parser.add_argument("tiles", type=str, help="directory to read slippy map image tiles from")
+    predict_parser.add_argument("probs", type=str, help="directory to save slippy map probability masks to")
+    predict_parser.add_argument("--model", type=str, required=True, help="path to model configuration file")
+    predict_parser.add_argument("--dataset", type=str, required=True, help="path to dataset configuration file")
+
+    args = parser.parse_args()
+
+    if args.command == "predict":
+        main(args)
+    else:
+        parser.print_help()

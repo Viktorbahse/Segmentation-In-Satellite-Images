@@ -5,6 +5,9 @@ import json
 from supermercado import burntiles
 from tqdm import tqdm
 
+import rootutils
+rootutils.setup_root(__file__, indicator="robosat", pythonpath=True)
+
 
 def add_parser(subparser):
     parser = subparser.add_parser(
@@ -35,3 +38,19 @@ def main(args):
     with open(args.out, "w") as fp:
         writer = csv.writer(fp)
         writer.writerows(tiles)
+
+
+if __name__ == "__main__":
+    class Args:
+        def __init__(self, feature):
+            self.zoom = 20
+            self.features = feature
+            self.out = "data/tiles.csv"
+    
+    import glob, os
+    candidates = glob.glob("data/*buildings*.geojson")
+    if not candidates:
+        candidates = glob.glob("data/*.geojson")
+    chosen = candidates[0]  
+    args = Args(chosen)
+    main(args)

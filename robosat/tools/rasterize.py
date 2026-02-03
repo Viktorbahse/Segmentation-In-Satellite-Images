@@ -15,9 +15,12 @@ from rasterio.features import rasterize
 from rasterio.warp import transform
 from supermercado import burntiles
 
-from robosat.config import load_config
-from robosat.colors import make_palette
-from robosat.tiles import tiles_from_csv
+import rootutils
+rootutils.setup_root(__file__, indicator="robosat", pythonpath=True)
+
+from robosat.config import load_config # noqa
+from robosat.colors import make_palette # noqa
+from robosat.tiles import tiles_from_csv # noqa
 
 
 def add_parser(subparser):
@@ -132,9 +135,29 @@ def main(args):
             prev = np.array(Image.open(out_path))
             out = np.maximum(out, prev)
 
-        out = Image.fromarray(out, mode="P")
+        out = Image.fromarray(out.astype(np.uint8), mode="P")
 
         palette = make_palette(bg, fg)
         out.putpalette(palette)
 
         out.save(out_path, optimize=True)
+
+
+if __name__ == "__main__":
+    class Args:
+        def __init__(self, features):
+            self.dataset = "config/dataset-building.toml"
+            self.zoom = 20
+            self.size = 256
+            self.features = features 
+            self.tiles = "data/tiles.csv"
+            self.out = "data/masks"
+    
+    
+    import glob, os
+    candidates = glob.glob("data/*buildings*.geojson")
+    if not candidates:
+        candidates = glob.glob("data/*.geojson")
+    chosen = candidates[0]  
+    args = Args(chosen)
+    main(args)

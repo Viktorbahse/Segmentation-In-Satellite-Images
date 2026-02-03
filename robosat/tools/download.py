@@ -8,7 +8,10 @@ import requests
 from PIL import Image
 from tqdm import tqdm
 
-from robosat.tiles import tiles_from_csv, fetch_image
+import rootutils
+rootutils.setup_root(__file__, indicator="robosat", pythonpath=True)
+
+from robosat.tiles import tiles_from_csv, fetch_image # noqa
 
 
 def add_parser(subparser):
@@ -76,3 +79,16 @@ def main(args):
             for tile, ok in executor.map(worker, tiles):
                 if not ok:
                     print("Warning: {} failed, skipping".format(tile), file=sys.stderr)
+
+
+if __name__ == "__main__":
+    class Args:
+        def __init__(self):
+            self.url = "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+            self.ext = "jpg"
+            self.rate = 100
+            self.tiles = "data/tiles.csv"
+            self.out = "data/tiles"
+    
+    args = Args()
+    main(args)

@@ -8,9 +8,12 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
 
-from robosat.config import load_config
-from robosat.datasets import SlippyMapTiles
-from robosat.transforms import ConvertImageMode, MaskToTensor
+import rootutils
+rootutils.setup_root(__file__, indicator="robosat", pythonpath=True)
+
+from robosat.config import load_config # noqa
+from robosat.datasets import SlippyMapTiles # noqa
+from robosat.transforms import ConvertImageMode, MaskToTensor # noqa
 
 
 def add_parser(subparser):
@@ -57,3 +60,12 @@ def main(args):
 
     weights.round(6, out=weights)
     print(weights.tolist())
+
+
+if __name__ == "__main__":
+    class Args:
+        def __init__(self):
+            self.dataset = "config/dataset-building.toml"
+    
+    args = Args()
+    main(args)

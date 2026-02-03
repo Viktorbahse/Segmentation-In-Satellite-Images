@@ -1,3 +1,75 @@
+markdown
+
+# Инструкции по установке
+
+## 1. Клонирование репозитория
+git clone https://github.com/Viktorbahse/Segmentation-In-Satellite-Images.git
+
+## 2. Создание и активация окружения Conda
+conda create -n robosat python=3.10
+conda activate robosat
+
+## 3. Переход в директорию проекта и выбор ветки
+cd Segmentation-In-Satellite-Images/
+git checkout mapbox_robosat
+
+## 4. Установка зависимостей
+pip install -r requirements.in
+
+## 5. Подготовка данных
+mkdir data
+
+## 6. Загрузка OSM данных для Танзании
+wget --limit-rate=10M http://download.geofabrik.de/africa/tanzania-latest.osm.pbf
+
+## 7. Извлечение данных для региона Дар-эс-Салам
+osmium extract --bbox '38.9410400390625,-7.0545565715284955,39.70458984374999,-5.711646879515092' tanzania-latest.osm.pbf --output data/map.osm.pbf
+
+## 8. Удаление исходного файла OSM
+rm tanzania-latest.osm.pbf
+
+## 9. Извлечение, загрузка и обработка данных
+
+### Извлечение полигонов зданий
+python robosat/tools/extract.py 
+
+python robosat/tools/cover.py
+
+### Загрузка спутниковых снимков
+python robosat/tools/download.py
+
+### Растеризация полигонов в маски
+python robosat/tools/rasterize.py 
+
+### Разделение тайлов на наборы данных
+python robosat/tools/split_tiles.py --input data/tiles.csv --shuffle --seed 123
+
+### Создание подмножеств данных
+python robosat/tools/subset.py 
+
+### Расчет весов классов
+python robosat/tools/weights.py 
+
+### Вычисление пересечений для всех наборов данных
+python robosat/tools/intersection.py data/validation
+python robosat/tools/intersection.py data/training
+python robosat/tools/intersection.py data/testing
+
+## 10. Обучение модели
+python robosat/tools/train.py
+
+## 11. Предсказание на тестовых данных
+python robosat/tools/predict.py predict --checkpoint models/checkpoint-00001-of-00010.pth --tile_size 256 --model config/model-unet.toml --dataset config/dataset-building.toml data/testing/images/ segmentation-probabilities
+
+## 12. Постобработка и визуализация результатов
+
+### Создание бинарных масок из вероятностей
+./rs masks segmentation-masks segmentation-probabilities
+
+### Визуализация сравнения результатов
+./rs compare visualizations data/testing/images/ segmentation-masks/ segmentation-masks/
+
+
 **Note: Robosat is neither maintained not actively developed any longer by Mapbox. See [this issue](https://github.com/mapbox/robosat/issues/184).  
 The main developers ([@daniel-j-h](https://github.com/daniel-j-h), [@bkowshik](https://github.com/bkowshik)) are no longer with Mapbox.**
 

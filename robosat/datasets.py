@@ -118,7 +118,7 @@ class BufferedSlippyMapDirectory(torch.utils.data.Dataset):
         if self.transform is not None:
             image = self.transform(image)
 
-        return image, torch.IntTensor([tile.x, tile.y, tile.z])
+        return image, (int(tile.x), int(tile.y), int(tile.z))
 
     def unbuffer(self, probs):
         """Removes borders from segmentation probabilities added to the original tile image.
