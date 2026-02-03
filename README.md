@@ -52,7 +52,9 @@ python robosat/tools/weights.py
 
 ### Вычисление пересечений для всех наборов данных
 python robosat/tools/intersection.py data/validation
+
 python robosat/tools/intersection.py data/training
+
 python robosat/tools/intersection.py data/testing
 
 ## 10. Обучение модели
