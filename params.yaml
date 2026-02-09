@@ -1,0 +1,9 @@
+seed: 0xC00FFEE
+
+download_tiles:
+  seed: ${seed}
+  zoom_level: 20
+  services: # TMS services
+  - http://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x} # arcgis
+  - https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z} # google
+  - https://sat04.maps.yandex.net/tiles?l=sat&amp;x=${x}&amp;y=${y}&amp;z=${z} # yandex

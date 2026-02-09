@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "download_tiles",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "src/download_tiles.py",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
