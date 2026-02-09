@@ -16,13 +16,6 @@
     source .venv/bin/activate
 ```
 
-#### **DVC pipeline**
-
-```bash
-    # генерация синтетических данных
-    dvc repro prepare_synthetic_data
-```
-
 #### **Pre-commit check**
 
 ```bash
